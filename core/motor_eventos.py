@@ -72,7 +72,7 @@ class Simulador:
         self.metrica_suma_edades_cerveza = 0.0           #    (auxiliar para promedio de edad)
         self.metrica_total_fotografia = 0                # 3) visitantes que entraron a fotografía
         self.metrica_abandonos_post_pintura = 0          # 4) personas que se van tras pintura (no van a foto)
-        self.metrica_max_cola_cerveza = 0                # 5) máxima longitud alcanzada por la cola de cerveza
+                      # 5) máxima longitud alcanzada por la cola de cerveza
 
         # Tablas de Runge-Kutta generadas, para mostrarlas en la interfaz
         self.tablas_rk_generadas = {}
