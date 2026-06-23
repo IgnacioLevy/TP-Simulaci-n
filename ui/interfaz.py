@@ -120,14 +120,52 @@ class InterfazApp:
     # Layout general: header + notebook con pestañas
     # ------------------------------------------------------------------
     def _crear_layout(self):
-        header = tk.Frame(self.root, bg=COLOR_BORGOÑA, height=64)
+        self.main_canvas = tk.Canvas(self.root, bg=COLOR_FONDO, highlightthickness=0)
+        self.main_scrollbar = ttk.Scrollbar(self.root, orient="vertical", command=self.main_canvas.yview)
+        self.main_frame = ttk.Frame(self.main_canvas, style="TFrame")
+        
+        self.main_canvas.configure(yscrollcommand=self.main_scrollbar.set)
+        
+        self.main_scrollbar.pack(side="right", fill="y")
+        self.main_canvas.pack(side="left", fill="both", expand=True)
+        
+        self.main_window_id = self.main_canvas.create_window((0, 0), window=self.main_frame, anchor="nw")
+        
+        def _configure_main_frame(event):
+            self.main_canvas.configure(scrollregion=self.main_canvas.bbox("all"))
+            
+        def _configure_main_canvas(event):
+            if self.main_frame.winfo_reqwidth() < event.width:
+                self.main_canvas.itemconfigure(self.main_window_id, width=event.width)
+            else:
+                self.main_canvas.itemconfigure(self.main_window_id, width=self.main_frame.winfo_reqwidth())
+            
+            if self.main_frame.winfo_reqheight() < event.height:
+                self.main_canvas.itemconfigure(self.main_window_id, height=event.height)
+            else:
+                self.main_canvas.itemconfigure(self.main_window_id, height=self.main_frame.winfo_reqheight())
+
+        self.main_frame.bind("<Configure>", _configure_main_frame)
+        self.main_canvas.bind("<Configure>", _configure_main_canvas)
+        
+        def _on_mousewheel(event):
+            try:
+                w_class = event.widget.winfo_class()
+                if w_class not in ('Treeview', 'Listbox', 'Scrollbar', 'TCombobox'):
+                    self.main_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            except Exception:
+                pass
+
+        self.root.bind_all("<MouseWheel>", _on_mousewheel)
+
+        header = tk.Frame(self.main_frame, bg=COLOR_BORGOÑA, height=64)
         header.pack(fill="x", side="top")
         tk.Label(header, text="🏛  PALACIO FERREYRA", bg=COLOR_BORGOÑA, fg="white",
                  font=("Georgia", 18, "bold")).pack(side="left", padx=20, pady=10)
         tk.Label(header, text="Simulador de eventos discretos — TP5 Simulación 2026",
                  bg=COLOR_BORGOÑA, fg="#EBD9D9", font=("Segoe UI", 10, "italic")).pack(side="left", pady=10)
 
-        cuerpo = ttk.Frame(self.root, style="TFrame")
+        cuerpo = ttk.Frame(self.main_frame, style="TFrame")
         cuerpo.pack(fill="both", expand=True, padx=12, pady=12)
 
         self.notebook = ttk.Notebook(cuerpo)
@@ -152,7 +190,7 @@ class InterfazApp:
         self._armar_tab_15min()
 
         # Barra de estado
-        self.lbl_estado = tk.Label(self.root, text="Listo para simular. Configurá los parámetros y presioná Iniciar.",
+        self.lbl_estado = tk.Label(self.main_frame, text="Listo para simular. Configurá los parámetros y presioná Iniciar.",
                                     bg=COLOR_DORADO, fg="white", font=("Segoe UI", 9), anchor="w")
         self.lbl_estado.pack(fill="x", side="bottom")
 
@@ -484,12 +522,16 @@ class InterfazApp:
         frame_tabla_rk = ttk.Labelframe(panel, text="Pasos calculados", style="TLabelframe")
         frame_tabla_rk.pack(side="left", fill="both", expand=True)
 
-        self.tree_rk = ttk.Treeview(frame_tabla_rk, columns=('t', 'C', 'dCdt'), show='headings')
+        self.tree_rk = ttk.Treeview(frame_tabla_rk, columns=('t', 'C', 'dCdt', 'k1', 'k2', 'k3', 'k4'), show='headings')
         self.tree_rk.heading('t', text='t')
         self.tree_rk.heading('C', text='C(t)')
         self.tree_rk.heading('dCdt', text='dC/dt')
-        for c in ('t', 'C', 'dCdt'):
-            self.tree_rk.column(c, width=120, anchor="center")
+        self.tree_rk.heading('k1', text='k1')
+        self.tree_rk.heading('k2', text='k2')
+        self.tree_rk.heading('k3', text='k3')
+        self.tree_rk.heading('k4', text='k4')
+        for c in ('t', 'C', 'dCdt', 'k1', 'k2', 'k3', 'k4'):
+            self.tree_rk.column(c, width=100, anchor="center")
         scroll_rk = ttk.Scrollbar(frame_tabla_rk, orient="vertical", command=self.tree_rk.yview)
         self.tree_rk.configure(yscrollcommand=scroll_rk.set)
         self.tree_rk.pack(side="left", fill="both", expand=True, padx=8, pady=8)
@@ -510,7 +552,7 @@ class InterfazApp:
             self.tree_rk.delete(row)
 
         for _, fila in tabla.iterrows():
-            self.tree_rk.insert('', 'end', values=(fila['t'], fila['C(t)'], fila['dC/dt']))
+            self.tree_rk.insert('', 'end', values=(fila['t'], fila['C(t)'], fila['dC/dt'], fila['k1'], fila['k2'], fila['k3'], fila['k4']))
 
     def _actualizar_rk(self, tablas_dict):
         self.lista_rk.delete(0, tk.END)
