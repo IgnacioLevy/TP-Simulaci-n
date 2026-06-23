@@ -346,8 +346,7 @@ class InterfazApp:
                             f"{metricas['total_fotografia']}")
         self._fila_metrica(self.frame_extra, 4, "5. Personas que abandonaron tras Pintura (no fueron a Foto):",
                             f"{metricas['abandonos_post_pintura']}")
-        self._fila_metrica(self.frame_extra, 5, "    (extra) Longitud máxima alcanzada por la cola de cerveza:",
-                            f"{metricas['max_cola_cerveza']} personas")
+        
 
     # ------------------------------------------------------------------
     # TAB 4: Runge-Kutta

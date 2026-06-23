@@ -357,8 +357,7 @@ class Simulador:
                             visitante.estado = "En cola de cerveza"
                             visitante.sala_actual = "Cola Cerveza"
                             self.cola_cerveza.append(visitante)
-                            if len(self.cola_cerveza) > self.metrica_max_cola_cerveza:
-                                self.metrica_max_cola_cerveza = len(self.cola_cerveza)
+                         
                     else:
                         visitante.tomo_cerveza = False
                         visitante.estado = "En Fotografia"
@@ -491,5 +490,5 @@ class Simulador:
             'prom_edad_cerveza': prom_edad_cerveza,
             'total_fotografia': self.metrica_total_fotografia,
             'abandonos_post_pintura': self.metrica_abandonos_post_pintura,
-            'max_cola_cerveza': self.metrica_max_cola_cerveza,
+            
         }
