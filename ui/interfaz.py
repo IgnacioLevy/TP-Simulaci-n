@@ -363,7 +363,7 @@ class InterfazApp:
         frame_detalle.pack(side="bottom", fill="both", expand=False, pady=(10, 0))
 
         columnas_det = ('ID', 'Puerta', 'Edad', 'RND_Edad', 'Estado', 'Sala', 'Llegada', 
-                        'RND_Foll', 'RND_Vent', 'RND_T_Foll', 'RND_T_Pint', 'RND_Foto', 'RND_Cerv', 'RND_T_Cerv')
+                        'RND_Foll', 'RND_Vent', 'RND_T_Foll', 'RND_T_Pint', 'RND_Foto', 'RND_Cerv', 'RND_T_Cerv','RND_T_Foto')
         self.tree_detalle = ttk.Treeview(frame_detalle, columns=columnas_det, show='headings', height=8)
         for col in columnas_det:
             self.tree_detalle.heading(col, text=col)
@@ -395,7 +395,8 @@ class InterfazApp:
                 vis.get('RND_Dec_Folletos', ''), vis.get('RND_Vent_Elegida', ''),
                 vis.get('RND_Tiempo_Foll', ''), vis.get('RND_Tiempo_Pintura', ''),
                 vis.get('RND_Dec_Foto', ''), vis.get('RND_Dec_Cerveza', ''),
-                vis.get('RND_Tiempo_Cerveza', '')
+                vis.get('RND_Tiempo_Cerveza', ''),
+                vis.get('RND_Tiempo_Foto', '')
             ))
 
     def actualizar_vista_vector(self):

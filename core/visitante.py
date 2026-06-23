@@ -53,6 +53,7 @@ class Visitante:
         self.rnd_decision_fotografia = None
         self.rnd_decision_cerveza = None
         self.rnd_tiempo_cerveza = None
+        self.rnd_tiempo_fotografia = None
 
     def snapshot(self):
         """
@@ -66,6 +67,11 @@ class Visitante:
         elif self.rnd_tiempo_pintura is not None:
             rnd_pintura_str = f"{self.rnd_tiempo_pintura:.4f}"
 
+        rnd_foto_str = ""
+        if isinstance(self.rnd_tiempo_fotografia, tuple):
+            rnd_foto_str = f"{self.rnd_tiempo_fotografia[0]:.4f}, {self.rnd_tiempo_fotografia[1]:.4f}"
+        elif self.rnd_tiempo_fotografia is not None:
+            rnd_foto_str = f"{self.rnd_tiempo_fotografia:.4f}"
         return {
             "ID": self.id,
             "Puerta": self.puerta,
@@ -81,4 +87,5 @@ class Visitante:
             "RND_Dec_Foto": round(self.rnd_decision_fotografia, 4) if self.rnd_decision_fotografia is not None else "",
             "RND_Dec_Cerveza": round(self.rnd_decision_cerveza, 4) if self.rnd_decision_cerveza is not None else "",
             "RND_Tiempo_Cerveza": round(self.rnd_tiempo_cerveza, 4) if self.rnd_tiempo_cerveza is not None else "",
-        }
+            "RND_Tiempo_Foto": rnd_foto_str
+        }   

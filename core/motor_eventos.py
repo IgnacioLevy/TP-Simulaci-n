@@ -383,6 +383,7 @@ class Simulador:
                         visitante.sala_actual = "Fotografia"
                         visitante.inicio_fotografia = self.reloj
                         t_foto, rnd_foto1, rnd_foto2 = self.determinar_tiempo_sala("Fotografia")
+                        visitante.rnd_tiempo_fotografia = (rnd_foto1, rnd_foto2)
                         self.eventos[f'Fin_Fotografia_{visitante.id}'] = self.reloj + t_foto
                 else:
                     # Se va del sistema directamente tras pintura
@@ -438,6 +439,7 @@ class Simulador:
                 visitante.sala_actual = "Fotografia"
                 visitante.inicio_fotografia = self.reloj
                 t_foto, rnd_foto1, rnd_foto2 = self.determinar_tiempo_sala("Fotografia")
+                visitante.rnd_tiempo_fotografia = (rnd_foto1, rnd_foto2)
                 self.eventos[f'Fin_Fotografia_{visitante.id}'] = self.reloj + t_foto
 
             # --- FIN DE RECORRIDO (sale de fotografía) ---
