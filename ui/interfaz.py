@@ -329,7 +329,7 @@ class InterfazApp:
         columnas = ('Iteracion', 'Dia', 'Hora', 'Reloj_Global', 'Evento',
                     'ProxA', 'RNDA', 'ProxB', 'RNDB', 'ProxC', 'RNDC',
                     'ColaV1', 'ColaV2', 'Pintura', 'ColaCerveza', 'ServLibres', 'Fotografia', 'Activos')
-        self.tree = ttk.Treeview(frame_tabla, columns=columnas, show='headings', height=14)
+        self.tree = ttk.Treeview(frame_tabla, columns=columnas, show='headings', height=14, selectmode='extended')
         encabezados = {
             'Iteracion': 'Iter.', 'Dia': 'Día', 'Hora': 'Hora', 'Reloj_Global': 'Reloj (s)',
             'Evento': 'Evento', 
@@ -357,6 +357,8 @@ class InterfazApp:
         frame_tabla.grid_columnconfigure(0, weight=1)
 
         self.tree.bind("<<TreeviewSelect>>", self._mostrar_detalle_fila)
+        self.tree.bind("<Control-c>", lambda e: self._copiar_seleccion_tree(self.tree))
+        self.tree.bind("<Control-a>", lambda e: self._seleccionar_todo_tree(self.tree))
 
         # --- Panel de detalle de visitantes de la fila seleccionada ---
         frame_detalle = ttk.Labelframe(panel_split, text="Detalle de visitantes activos en la fila seleccionada", style="TLabelframe")
@@ -364,7 +366,7 @@ class InterfazApp:
 
         columnas_det = ('ID', 'Puerta', 'Edad', 'RND_Edad', 'Estado', 'Sala', 'Llegada', 
                         'RND_Foll', 'RND_Vent', 'RND_T_Foll', 'RND_T_Pint', 'RND_Foto', 'RND_Cerv', 'RND_T_Cerv','RND_T_Foto')
-        self.tree_detalle = ttk.Treeview(frame_detalle, columns=columnas_det, show='headings', height=8)
+        self.tree_detalle = ttk.Treeview(frame_detalle, columns=columnas_det, show='headings', height=8, selectmode='extended')
         for col in columnas_det:
             self.tree_detalle.heading(col, text=col)
             # Achicamos un poco el ancho para que entren
@@ -373,13 +375,17 @@ class InterfazApp:
         self.tree_detalle.configure(yscrollcommand=scroll_det.set)
         self.tree_detalle.pack(side="left", fill="both", expand=True, padx=(8, 0), pady=8)
         scroll_det.pack(side="right", fill="y", pady=8)
+        self.tree_detalle.bind("<Control-c>", lambda e: self._copiar_seleccion_tree(self.tree_detalle))
+        self.tree_detalle.bind("<Control-a>", lambda e: self._seleccionar_todo_tree(self.tree_detalle))
 
         self._filas_guardadas = []  # cache para poder reconstruir el detalle al seleccionar
 
     def _mostrar_detalle_fila(self, event):
+        """Muestra el detalle de visitantes activos de la PRIMERA fila seleccionada."""
         seleccion = self.tree.selection()
         if not seleccion:
             return
+        # Siempre usar la primera fila de la selección para el detalle
         idx = self.tree.index(seleccion[0])
         if idx >= len(self._filas_guardadas):
             return
@@ -398,6 +404,41 @@ class InterfazApp:
                 vis.get('RND_Tiempo_Cerveza', ''),
                 vis.get('RND_Tiempo_Foto', '')
             ))
+
+    # ------------------------------------------------------------------
+    # Selección múltiple y copiado al portapapeles (Ctrl+C / Ctrl+A)
+    # ------------------------------------------------------------------
+    def _copiar_seleccion_tree(self, tree):
+        """Copia las filas seleccionadas de un Treeview al portapapeles
+        como texto separado por tabulaciones (pegable en Excel/Sheets)."""
+        seleccion = tree.selection()
+        if not seleccion:
+            return
+
+        columnas = tree['columns']
+        # Encabezados
+        headers = [tree.heading(col, 'text') for col in columnas]
+        lineas = ['\t'.join(headers)]
+
+        # Datos de cada fila seleccionada
+        for item_id in seleccion:
+            valores = tree.item(item_id, 'values')
+            lineas.append('\t'.join(str(v) for v in valores))
+
+        texto = '\n'.join(lineas)
+
+        self.root.clipboard_clear()
+        self.root.clipboard_append(texto)
+
+        cant = len(seleccion)
+        self.lbl_estado.config(
+            text=f"✓ {cant} fila{'s' if cant > 1 else ''} copiada{'s' if cant > 1 else ''} al portapapeles (Ctrl+V para pegar)."
+        )
+
+    def _seleccionar_todo_tree(self, tree):
+        """Selecciona todas las filas de un Treeview (Ctrl+A)."""
+        todos = tree.get_children()
+        tree.selection_set(todos)
 
     def actualizar_vista_vector(self):
         if not hasattr(self, 'todas_las_filas_simulacion'):
@@ -523,7 +564,7 @@ class InterfazApp:
         frame_tabla_rk = ttk.Labelframe(panel, text="Pasos calculados", style="TLabelframe")
         frame_tabla_rk.pack(side="left", fill="both", expand=True)
 
-        self.tree_rk = ttk.Treeview(frame_tabla_rk, columns=('t', 'C', 'dCdt', 'k1', 'k2', 'k3', 'k4'), show='headings')
+        self.tree_rk = ttk.Treeview(frame_tabla_rk, columns=('t', 'C', 'dCdt', 'k1', 'k2', 'k3', 'k4'), show='headings', selectmode='extended')
         self.tree_rk.heading('t', text='t')
         self.tree_rk.heading('C', text='C(t)')
         self.tree_rk.heading('dCdt', text='dC/dt')
@@ -537,6 +578,8 @@ class InterfazApp:
         self.tree_rk.configure(yscrollcommand=scroll_rk.set)
         self.tree_rk.pack(side="left", fill="both", expand=True, padx=8, pady=8)
         scroll_rk.pack(side="right", fill="y", pady=8)
+        self.tree_rk.bind("<Control-c>", lambda e: self._copiar_seleccion_tree(self.tree_rk))
+        self.tree_rk.bind("<Control-a>", lambda e: self._seleccionar_todo_tree(self.tree_rk))
 
         self._tablas_rk_dict = {}
 
@@ -574,7 +617,7 @@ class InterfazApp:
         frame_tabla = ttk.Frame(contenedor, style="TFrame")
         frame_tabla.pack(fill="both", expand=True)
 
-        self.tree_15 = ttk.Treeview(frame_tabla, columns=('Dia', 'Hora', 'Pintura', 'Foto'), show='headings', height=22)
+        self.tree_15 = ttk.Treeview(frame_tabla, columns=('Dia', 'Hora', 'Pintura', 'Foto'), show='headings', height=22, selectmode='extended')
         self.tree_15.heading('Dia', text='Día')
         self.tree_15.heading('Hora', text='Hora')
         self.tree_15.heading('Pintura', text='En Pintura')
@@ -588,6 +631,8 @@ class InterfazApp:
         
         self.tree_15.pack(side="left", fill="both", expand=True)
         scroll_15.pack(side="right", fill="y")
+        self.tree_15.bind("<Control-c>", lambda e: self._copiar_seleccion_tree(self.tree_15))
+        self.tree_15.bind("<Control-a>", lambda e: self._seleccionar_todo_tree(self.tree_15))
 
     def _actualizar_15min(self, metricas_15):
         # Limpiar tabla
