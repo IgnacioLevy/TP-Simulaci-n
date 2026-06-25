@@ -188,7 +188,7 @@ class Simulador:
         """
         visitantes_snapshot = []
         for vis in self.visitantes_activos.values():
-            visitantes_snapshot.append(vis.snapshot())
+            visitantes_snapshot.append(vis.snapshot(self))
 
         return {
             'Iteracion': self.iteracion,
@@ -218,6 +218,15 @@ class Simulador:
         horas = int(9 + total_seg // 3600)
         minutos = int((total_seg % 3600) // 60)
         segundos = int(total_seg % 60)
+        return f"{horas:02d}:{minutos:02d}:{segundos:02d}"
+
+    def formatear_hora_reloj(self, T):
+        if T is None:
+            return ""
+        relative_seg = T - self.reloj + self.reloj_dia
+        horas = int(9 + relative_seg // 3600)
+        minutos = int((relative_seg % 3600) // 60)
+        segundos = int(relative_seg % 60)
         return f"{horas:02d}:{minutos:02d}:{segundos:02d}"
 
     # ------------------------------------------------------------------
@@ -285,22 +294,29 @@ class Simulador:
                         media_f, desv_f = self.parametros['folletos']
                         t_folletos, rnd_f = self.generar_uniforme(media_f - desv_f, media_f + desv_f)
                         nuevo.rnd_tiempo_folletos = rnd_f
+                        nuevo.duracion_folletos = t_folletos
+                        nuevo.fin_folletos_reloj = self.reloj + t_folletos
                         nuevo.estado = "En ventanilla"
                         nuevo.sala_actual = f"Ventanilla {v_elegida}"
+                        nuevo.destino = "Pintura"
                         self.eventos[f'Fin_Folletos_{v_elegida}_{nuevo.id}'] = self.reloj + t_folletos
                         self.metrica_total_folletos += 1
                     else:
                         nuevo.inicio_cola_informes = self.reloj
                         nuevo.estado = "En cola de informes"
                         nuevo.sala_actual = f"Cola Ventanilla {v_elegida}"
+                        nuevo.destino = f"Ventanilla {v_elegida}"
                         self.ventanillas[v_elegida]['cola'].append(nuevo)
                 else:
                     nuevo.fue_a_folletos = False
                     nuevo.estado = "En Pintura"
                     nuevo.sala_actual = "Pintura"
+                    nuevo.destino = "Por decidir"
                     nuevo.inicio_pintura = self.reloj
                     t_pintura, rnd_p1, rnd_p2 = self.determinar_tiempo_sala("Pintura")
                     nuevo.rnd_tiempo_pintura = (rnd_p1, rnd_p2)
+                    nuevo.duracion_pintura = t_pintura
+                    nuevo.fin_pintura_reloj = self.reloj + t_pintura
                     self.eventos[f'Fin_Pintura_{nuevo.id}'] = self.reloj + t_pintura
                     self.personas_en_pintura += 1
 
@@ -314,9 +330,12 @@ class Simulador:
                 visitante.fin_cola_informes = self.reloj
                 visitante.estado = "En Pintura"
                 visitante.sala_actual = "Pintura"
+                visitante.destino = "Por decidir"
                 visitante.inicio_pintura = self.reloj
                 t_pintura, rnd_p1, rnd_p2 = self.determinar_tiempo_sala("Pintura")
                 visitante.rnd_tiempo_pintura = (rnd_p1, rnd_p2)
+                visitante.duracion_pintura = t_pintura
+                visitante.fin_pintura_reloj = self.reloj + t_pintura
                 self.eventos[f'Fin_Pintura_{visitante.id}'] = self.reloj + t_pintura
                 self.personas_en_pintura += 1
 
@@ -333,9 +352,12 @@ class Simulador:
 
                     siguiente.estado = "En ventanilla"
                     siguiente.sala_actual = f"Ventanilla {v_id}"
+                    siguiente.destino = "Pintura"
                     media_f, desv_f = self.parametros['folletos']
                     t_folletos, rnd_f = self.generar_uniforme(media_f - desv_f, media_f + desv_f)
                     siguiente.rnd_tiempo_folletos = rnd_f
+                    siguiente.duracion_folletos = t_folletos
+                    siguiente.fin_folletos_reloj = self.reloj + t_folletos
                     self.eventos[f'Fin_Folletos_{v_id}_{siguiente.id}'] = self.reloj + t_folletos
                     self.metrica_total_folletos += 1
                 else:
@@ -366,14 +388,18 @@ class Simulador:
                             min_c, max_c = self.parametros['cerveza']
                             t_servicio, rnd_s = self.generar_uniforme(min_c, max_c)
                             visitante.rnd_tiempo_cerveza = rnd_s
+                            visitante.duracion_cerveza = t_servicio
+                            visitante.fin_cerveza_reloj = self.reloj + t_servicio
                             visitante.estado = "Siendo atendido (cerveza)"
                             visitante.sala_actual = "Stand Cerveza"
+                            visitante.destino = "Degustación Cerveza"
                             visitante.inicio_cerveza = self.reloj
                             self.eventos[f'Fin_Servicio_Cerveza_{visitante.id}'] = self.reloj + t_servicio
                         else:
                             visitante.inicio_cola_cerveza = self.reloj
                             visitante.estado = "En cola de cerveza"
                             visitante.sala_actual = "Cola Cerveza"
+                            visitante.destino = "Stand Cerveza"
                             self.cola_cerveza.append(visitante)
                             self.max_cola_cerveza = max(self.max_cola_cerveza, len(self.cola_cerveza))
                          
@@ -381,15 +407,19 @@ class Simulador:
                         visitante.tomo_cerveza = False
                         visitante.estado = "En Fotografia"
                         visitante.sala_actual = "Fotografia"
+                        visitante.destino = "Salida"
                         visitante.inicio_fotografia = self.reloj
                         t_foto, rnd_foto1, rnd_foto2 = self.determinar_tiempo_sala("Fotografia")
                         visitante.rnd_tiempo_fotografia = (rnd_foto1, rnd_foto2)
+                        visitante.duracion_fotografia = t_foto
+                        visitante.fin_fotografia_reloj = self.reloj + t_foto
                         self.eventos[f'Fin_Fotografia_{visitante.id}'] = self.reloj + t_foto
                 else:
                     # Se va del sistema directamente tras pintura
                     visitante.fue_a_fotografia = False
                     visitante.estado = "Salio"
                     visitante.sala_actual = "Fuera"
+                    visitante.destino = "Salida"
                     visitante.reloj_salida = self.reloj
                     self.metrica_abandonos_post_pintura += 1
 
@@ -412,8 +442,11 @@ class Simulador:
                     min_c, max_c = self.parametros['cerveza']
                     t_servicio, rnd_s = self.generar_uniforme(min_c, max_c)
                     siguiente.rnd_tiempo_cerveza = rnd_s
+                    siguiente.duracion_cerveza = t_servicio
+                    siguiente.fin_cerveza_reloj = self.reloj + t_servicio
                     siguiente.estado = "Siendo atendido (cerveza)"
                     siguiente.sala_actual = "Stand Cerveza"
+                    siguiente.destino = "Degustación Cerveza"
                     siguiente.inicio_cerveza = self.reloj
                     self.eventos[f'Fin_Servicio_Cerveza_{siguiente.id}'] = self.reloj + t_servicio
                 else:
@@ -426,6 +459,7 @@ class Simulador:
 
                 visitante.estado = "Degustando cerveza"
                 visitante.sala_actual = "Stand Cerveza"
+                visitante.destino = "Fotografía"
                 visitante.inicio_degustacion = self.reloj
                 self.eventos[f'Fin_Degustacion_{visitante.id}'] = self.reloj + tiempo_degustacion
 
@@ -437,9 +471,12 @@ class Simulador:
 
                 visitante.estado = "En Fotografia"
                 visitante.sala_actual = "Fotografia"
+                visitante.destino = "Salida"
                 visitante.inicio_fotografia = self.reloj
                 t_foto, rnd_foto1, rnd_foto2 = self.determinar_tiempo_sala("Fotografia")
                 visitante.rnd_tiempo_fotografia = (rnd_foto1, rnd_foto2)
+                visitante.duracion_fotografia = t_foto
+                visitante.fin_fotografia_reloj = self.reloj + t_foto
                 self.eventos[f'Fin_Fotografia_{visitante.id}'] = self.reloj + t_foto
 
             # --- FIN DE RECORRIDO (sale de fotografía) ---
@@ -449,6 +486,7 @@ class Simulador:
                 visitante.fin_fotografia = self.reloj
                 visitante.estado = "Salio"
                 visitante.sala_actual = "Fuera"
+                visitante.destino = "Salida"
                 visitante.reloj_salida = self.reloj
                 self.personas_en_fotografia -= 1
 

@@ -320,7 +320,8 @@ class InterfazApp:
         ttk.Label(frame_controles, text="Cantidad a mostrar (i):", style="Panel.TLabel").pack(side="left", padx=(20, 5))
         ttk.Entry(frame_controles, textvariable=self.param_i, width=10).pack(side="left", padx=5)
 
-        ttk.Button(frame_controles, text="Actualizar Vista", style="Accion.TButton", command=self.actualizar_vista_vector).pack(side="left", padx=20)
+        ttk.Button(frame_controles, text="Actualizar Vista", style="Accion.TButton", command=self.actualizar_vista_vector).pack(side="left", padx=10)
+        ttk.Button(frame_controles, text="Ver Estado Gráfico", style="Accion.TButton", command=self.abrir_visualizacion_grafica).pack(side="left", padx=10)
 
         # --- Tabla principal (iteraciones) ---
         frame_tabla = ttk.Frame(panel_split, style="TFrame")
@@ -362,13 +363,26 @@ class InterfazApp:
         frame_detalle = ttk.Labelframe(panel_split, text="Detalle de visitantes activos en la fila seleccionada", style="TLabelframe")
         frame_detalle.pack(side="bottom", fill="both", expand=False, pady=(10, 0))
 
-        columnas_det = ('ID', 'Puerta', 'Edad', 'RND_Edad', 'Estado', 'Sala', 'Llegada', 
-                        'RND_Foll', 'RND_Vent', 'RND_T_Foll', 'RND_T_Pint', 'RND_Foto', 'RND_Cerv', 'RND_T_Cerv','RND_T_Foto')
+        columnas_det = ('ID', 'Puerta', 'Edad', 'RND_Edad', 'Estado', 'Sala', 'Destino', 'Llegada', 
+                        'RND_Foll', 'Res_Foll', 'RND_Vent', 'Res_Vent', 
+                        'RND_T_Foll', 'Dur_T_Foll', 'Fin_T_Foll', 
+                        'RND_T_Pint', 'Dur_T_Pint', 'Fin_T_Pint', 
+                        'RND_Foto', 'Res_Foto', 
+                        'RND_Cerv', 'Res_Cerv', 'RND_T_Cerv', 'Dur_T_Cerv', 'Fin_T_Cerv', 
+                        'RND_T_Foto', 'Dur_T_Foto', 'Fin_T_Foto')
         self.tree_detalle = ttk.Treeview(frame_detalle, columns=columnas_det, show='headings', height=8)
         for col in columnas_det:
             self.tree_detalle.heading(col, text=col)
-            # Achicamos un poco el ancho para que entren
-            self.tree_detalle.column(col, width=80, anchor="center")
+            # Ajustamos anchos según contenido
+            if col in ('Estado', 'Destino'):
+                width = 120
+            elif col in ('Res_Foll', 'Res_Vent', 'Res_Foto', 'Res_Cerv'):
+                width = 70
+            elif col.startswith('Dur_T_') or col.startswith('Fin_T_'):
+                width = 80
+            else:
+                width = 80
+            self.tree_detalle.column(col, width=width, anchor="center")
         scroll_det = ttk.Scrollbar(frame_detalle, orient="vertical", command=self.tree_detalle.yview)
         self.tree_detalle.configure(yscrollcommand=scroll_det.set)
         self.tree_detalle.pack(side="left", fill="both", expand=True, padx=(8, 0), pady=8)
@@ -391,12 +405,15 @@ class InterfazApp:
         for vis in fila.get('Visitantes_Activos_Detalle', []):
             self.tree_detalle.insert('', 'end', values=(
                 vis['ID'], vis['Puerta'], vis['Edad'], vis['RND_Edad'],
-                vis['Estado'], vis['Sala'], vis['Llegada'],
-                vis.get('RND_Dec_Folletos', ''), vis.get('RND_Vent_Elegida', ''),
-                vis.get('RND_Tiempo_Foll', ''), vis.get('RND_Tiempo_Pintura', ''),
-                vis.get('RND_Dec_Foto', ''), vis.get('RND_Dec_Cerveza', ''),
-                vis.get('RND_Tiempo_Cerveza', ''),
-                vis.get('RND_Tiempo_Foto', '')
+                vis['Estado'], vis['Sala'], vis.get('Destino', ''), vis['Llegada'],
+                vis.get('RND_Dec_Folletos', ''), vis.get('Res_Folletos', ''),
+                vis.get('RND_Vent_Elegida', ''), vis.get('Res_Vent', ''),
+                vis.get('RND_Tiempo_Foll', ''), vis.get('Dur_Tiempo_Foll', ''), vis.get('Fin_Tiempo_Foll', ''),
+                vis.get('RND_Tiempo_Pintura', ''), vis.get('Dur_Tiempo_Pintura', ''), vis.get('Fin_Tiempo_Pintura', ''),
+                vis.get('RND_Dec_Foto', ''), vis.get('Res_Foto', ''),
+                vis.get('RND_Dec_Cerveza', ''), vis.get('Res_Cerveza', ''),
+                vis.get('RND_Tiempo_Cerveza', ''), vis.get('Dur_Tiempo_Cerveza', ''), vis.get('Fin_Tiempo_Cerveza', ''),
+                vis.get('RND_Tiempo_Foto', ''), vis.get('Dur_Tiempo_Foto', ''), vis.get('Fin_Tiempo_Foto', '')
             ))
 
     def actualizar_vista_vector(self):
@@ -676,3 +693,185 @@ class InterfazApp:
             text=f"Simulación completa — {self.simulador_actual.visitantes_totales} visitantes, "
                  f"{len(resultados)} filas mostradas, {self.simulador_actual.dia_actual} día(s) simulado(s)."
         )
+
+    def abrir_visualizacion_grafica(self):
+        seleccion = self.tree.selection()
+        if not seleccion:
+            messagebox.showinfo("Atención", "Por favor, seleccioná una fila del Vector de Estado primero.")
+            return
+        idx = self.tree.index(seleccion[0])
+        if idx >= len(self._filas_guardadas):
+            return
+        fila = self._filas_guardadas[idx]
+        self._mostrar_ventana_grafica(fila)
+
+    def _mostrar_ventana_grafica(self, fila):
+        ventana = tk.Toplevel(self.root)
+        ventana.title(f"Visualización Gráfica — Iteración {fila['Iteracion']} (Día {fila['Dia']}, {fila['Hora_Aprox']})")
+        ventana.geometry("1020x560")
+        ventana.resizable(False, False)
+        ventana.configure(bg="#F5F0E6")
+
+        # Top label info
+        info_str = f"Iteración: {fila['Iteracion']} | Día: {fila['Dia']} | Hora: {fila['Hora_Aprox']} | Evento: {fila['Evento']} | Reloj: {fila['Reloj_Global']} s"
+        lbl_info = tk.Label(ventana, text=info_str, font=("Georgia", 11, "bold"), fg="#7A1F2B", bg="#F5F0E6", pady=8)
+        lbl_info.pack(side="top", fill="x")
+
+        # Canvas
+        canvas = tk.Canvas(ventana, width=1000, height=490, bg="white", highlightthickness=0)
+        canvas.pack(pady=(0, 10))
+
+        # Enclosing border box (matches user drawing)
+        canvas.create_rectangle(10, 30, 990, 480, outline="black", width=3)
+
+        # Division vertical lines
+        canvas.create_line(350, 30, 350, 480, fill="black", width=2)
+        canvas.create_line(615, 30, 615, 480, fill="black", width=2)
+        canvas.create_line(800, 30, 800, 480, fill="black", width=2)
+
+        # Section headers (labels at top of sections)
+        canvas.create_text(175, 18, text="folletos", font=("Segoe UI", 12, "bold"), fill="black")
+        canvas.create_text(482, 18, text="pintura", font=("Segoe UI", 12, "bold"), fill="black")
+        canvas.create_text(707, 18, text="stand cerveza", font=("Segoe UI", 12, "bold"), fill="black")
+        canvas.create_text(900, 18, text="fotografía", font=("Segoe UI", 12, "bold"), fill="black")
+
+        # Sub-header titles in folletos
+        canvas.create_text(95, 38, text="ventanilla 1", font=("Segoe UI", 10, "bold"), fill="black")
+        canvas.create_text(255, 38, text="ventanilla 2", font=("Segoe UI", 10, "bold"), fill="black")
+
+        # Filter visitors by state/location
+        visitantes = fila.get('Visitantes_Activos_Detalle', [])
+
+        vis_v1_serv = [v for v in visitantes if v.get('Sala') == 'Ventanilla 1']
+        vis_v1_cola = sorted([v for v in visitantes if v.get('Sala') == 'Cola Ventanilla 1'], key=lambda x: x['ID'])
+
+        vis_v2_serv = [v for v in visitantes if v.get('Sala') == 'Ventanilla 2']
+        vis_v2_cola = sorted([v for v in visitantes if v.get('Sala') == 'Cola Ventanilla 2'], key=lambda x: x['ID'])
+
+        vis_pintura = sorted([v for v in visitantes if v.get('Sala') == 'Pintura'], key=lambda x: x['ID'])
+
+        vis_cerv_serv = [v for v in visitantes if v.get('Estado') == 'Siendo atendido (cerveza)']
+        vis_cerv_cola = sorted([v for v in visitantes if v.get('Estado') == 'En cola de cerveza' or v.get('Sala') == 'Cola Cerveza'], key=lambda x: x['ID'])
+        vis_cerv_deg = sorted([v for v in visitantes if v.get('Estado') == 'Degustando cerveza'], key=lambda x: x['ID'])
+
+        vis_foto = sorted([v for v in visitantes if v.get('Sala') == 'Fotografia' or v.get('Estado') == 'En Fotografia'], key=lambda x: x['ID'])
+
+        # --- Draw employees ---
+        def dibujar_empleado(x1, y1, x2, y2, name, is_occupied):
+            canvas.create_rectangle(x1, y1, x2, y2, fill="white", outline="black", width=2)
+            canvas.create_text((x1+x2)/2, y1 + 18, text=name, font=("Segoe UI", 9, "bold"), fill="#2B2420")
+            if not is_occupied:
+                canvas.create_rectangle(x1+2, y2-22, x2-2, y2-2, fill="#A0D82D", outline="")
+                canvas.create_text((x1+x2)/2, y2 - 12, text="libre", font=("Segoe UI", 9, "bold"), fill="black")
+            else:
+                canvas.create_text((x1+x2)/2, y2 - 12, text="Ocupado", font=("Segoe UI", 9, "bold"), fill="#C0392B")
+
+        # Ventanilla 1 Employees
+        dibujar_empleado(20, 52, 85, 122, "empleado1", len(vis_v1_serv) >= 1)
+        dibujar_empleado(105, 52, 170, 122, "empleado2", len(vis_v1_serv) >= 2)
+
+        # Ventanilla 2 Employees
+        dibujar_empleado(180, 52, 245, 122, "empleado3", len(vis_v2_serv) >= 1)
+        dibujar_empleado(265, 52, 330, 122, "empleado4", len(vis_v2_serv) >= 2)
+
+        # Stand Cerveza Employees
+        busy_cerv = len(vis_cerv_serv)
+        cerv_libres_real = max(0, 2 - busy_cerv)
+        dibujar_empleado(625, 52, 700, 122, "empleado\ncerveza 1", cerv_libres_real < 2)
+        dibujar_empleado(710, 52, 785, 122, "empleado\ncerveza 2", cerv_libres_real < 1)
+
+        # --- Draw visitor avatar helper ---
+        def dibujar_avatar(x, y, label):
+            # Circle bg
+            canvas.create_oval(x-20, y-20, x+20, y+20, fill="#2E5B82", outline="")
+            # Head
+            canvas.create_oval(x-7, y-12, x+7, y+2, fill="#FFFFFF", outline="")
+            # Shoulders/body
+            canvas.create_arc(x-14, y-2, x+14, y+22, start=0, extent=180, fill="#FFFFFF", outline="")
+            # Text label below
+            canvas.create_text(x, y+32, text=label, font=("Segoe UI", 8, "bold"), fill="#2B2420")
+
+        # --- Draw served visitors ---
+        if len(vis_v1_serv) >= 1:
+            dibujar_avatar(52, 165, f"vis. {vis_v1_serv[0]['ID']}")
+        if len(vis_v1_serv) >= 2:
+            dibujar_avatar(137, 165, f"vis. {vis_v1_serv[1]['ID']}")
+
+        if len(vis_v2_serv) >= 1:
+            dibujar_avatar(212, 165, f"vis. {vis_v2_serv[0]['ID']}")
+        if len(vis_v2_serv) >= 2:
+            dibujar_avatar(297, 165, f"vis. {vis_v2_serv[1]['ID']}")
+
+        if len(vis_cerv_serv) >= 1:
+            dibujar_avatar(662, 165, f"vis. {vis_cerv_serv[0]['ID']}")
+        if len(vis_cerv_serv) >= 2:
+            dibujar_avatar(747, 165, f"vis. {vis_cerv_serv[1]['ID']}")
+
+        # --- Draw queues ---
+        # Cola V1 Box
+        canvas.create_rectangle(20, 220, 170, 450, outline="black", width=2)
+        canvas.create_text(95, 232, text="cola v1", font=("Segoe UI", 9, "bold"), fill="black")
+        for idx, v in enumerate(vis_v1_cola):
+            y_pos = 270 + idx * 55
+            if y_pos < 440:
+                dibujar_avatar(95, y_pos, f"vis. {v['ID']}")
+            else:
+                canvas.create_text(95, 442, text=f"+ {len(vis_v1_cola) - idx} más", font=("Segoe UI", 8, "italic"), fill="black")
+                break
+
+        # Cola V2 Box
+        canvas.create_rectangle(180, 220, 330, 450, outline="black", width=2)
+        canvas.create_text(255, 232, text="cola v2", font=("Segoe UI", 9, "bold"), fill="black")
+        for idx, v in enumerate(vis_v2_cola):
+            y_pos = 270 + idx * 55
+            if y_pos < 440:
+                dibujar_avatar(255, y_pos, f"vis. {v['ID']}")
+            else:
+                canvas.create_text(255, 442, text=f"+ {len(vis_v2_cola) - idx} más", font=("Segoe UI", 8, "italic"), fill="black")
+                break
+
+        # Cola Cerveza Box
+        canvas.create_rectangle(625, 220, 700, 450, outline="black", width=1)
+        canvas.create_text(662, 232, text="cola v", font=("Segoe UI", 9, "bold"), fill="black")
+        for idx, v in enumerate(vis_cerv_cola):
+            y_pos = 270 + idx * 55
+            if y_pos < 440:
+                dibujar_avatar(662, y_pos, f"vis. {v['ID']}")
+            else:
+                canvas.create_text(662, 442, text=f"+{len(vis_cerv_cola)-idx}", font=("Segoe UI", 8, "italic"), fill="black")
+                break
+
+        # Bebiendo (degustando)
+        canvas.create_rectangle(710, 220, 785, 450, outline="black", width=1)
+        canvas.create_text(747, 232, text="bebiendo", font=("Segoe UI", 9, "bold"), fill="black")
+        for idx, v in enumerate(vis_cerv_deg):
+            y_pos = 270 + idx * 55
+            if y_pos < 440:
+                dibujar_avatar(747, y_pos, f"vis. {v['ID']}")
+            else:
+                canvas.create_text(747, 442, text=f"+{len(vis_cerv_deg)-idx}", font=("Segoe UI", 8, "italic"), fill="black")
+                break
+
+        # --- Draw Pintura Grid ---
+        for idx, v in enumerate(vis_pintura):
+            col = idx % 3
+            row = idx // 3
+            x_pos = 385 + col * 80
+            y_pos = 100 + row * 85
+            if y_pos < 450:
+                dibujar_avatar(x_pos, y_pos, f"vis. {v['ID']}")
+            else:
+                canvas.create_text(482, 465, text=f"+ {len(vis_pintura) - idx} en Pintura", font=("Segoe UI", 9, "italic", "bold"), fill="#6D214F")
+                break
+
+        # --- Draw Fotografia Grid ---
+        for idx, v in enumerate(vis_foto):
+            col = idx % 2
+            row = idx // 2
+            x_pos = 850 + col * 90
+            y_pos = 100 + row * 85
+            if y_pos < 450:
+                dibujar_avatar(x_pos, y_pos, f"vis. {v['ID']}")
+            else:
+                canvas.create_text(900, 465, text=f"+ {len(vis_foto) - idx} más", font=("Segoe UI", 9, "italic", "bold"), fill="#6D214F")
+                break
