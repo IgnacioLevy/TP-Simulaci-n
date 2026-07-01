@@ -32,6 +32,7 @@ class InterfazApp:
         self.root.minsize(1024, 650)
 
         self.simulador_actual = None
+        self.max_activos_simulacion = 0
 
         self._configurar_estilos()
         self._crear_variables()
@@ -68,7 +69,7 @@ class InterfazApp:
 
         style.configure("Treeview", background="white", fieldbackground="white",
                         foreground=COLOR_TEXTO, rowheight=24, font=FUENTE_MONO, borderwidth=0)
-        style.configure("Treeview.Heading", background=COLOR_DORADO, foreground="white",
+        style.configure("Treeview.Heading", background=COLOR_DORADO, foreground=COLOR_BORGOÑA_OSCURO,
                         font=("Segoe UI", 9, "bold"), padding=6)
         style.map("Treeview.Heading", background=[("active", COLOR_BORGOÑA)])
         style.map("Treeview", background=[("selected", COLOR_BORGOÑA)], foreground=[("selected", "white")])
@@ -121,13 +122,18 @@ class InterfazApp:
     # ------------------------------------------------------------------
     def _crear_layout(self):
         self.main_canvas = tk.Canvas(self.root, bg=COLOR_FONDO, highlightthickness=0)
-        self.main_scrollbar = ttk.Scrollbar(self.root, orient="vertical", command=self.main_canvas.yview)
+        self.main_scrollbar_y = ttk.Scrollbar(self.root, orient="vertical", command=self.main_canvas.yview)
+        self.main_scrollbar_x = ttk.Scrollbar(self.root, orient="horizontal", command=self.main_canvas.xview)
         self.main_frame = ttk.Frame(self.main_canvas, style="TFrame")
         
-        self.main_canvas.configure(yscrollcommand=self.main_scrollbar.set)
+        self.main_canvas.configure(yscrollcommand=self.main_scrollbar_y.set, xscrollcommand=self.main_scrollbar_x.set)
         
-        self.main_scrollbar.pack(side="right", fill="y")
-        self.main_canvas.pack(side="left", fill="both", expand=True)
+        self.main_canvas.grid(row=0, column=0, sticky="nsew")
+        self.main_scrollbar_y.grid(row=0, column=1, sticky="ns")
+        self.main_scrollbar_x.grid(row=1, column=0, sticky="ew")
+        
+        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
         
         self.main_window_id = self.main_canvas.create_window((0, 0), window=self.main_frame, anchor="nw")
         
@@ -201,7 +207,13 @@ class InterfazApp:
         contenedor = ttk.Frame(self.tab_parametros, style="TFrame")
         contenedor.pack(fill="both", expand=True, padx=20, pady=20)
 
-        ttk.Label(contenedor, text="Configuración del sistema", style="Titulo.TLabel").pack(anchor="w", pady=(0, 14))
+        frame_titulo = ttk.Frame(contenedor, style="TFrame")
+        frame_titulo.pack(fill="x", pady=(0, 14))
+
+        ttk.Label(frame_titulo, text="Configuración del sistema", style="Titulo.TLabel").pack(side="left")
+        btn_simular_top = ttk.Button(frame_titulo, text="▶  Iniciar Simulación", style="Accion.TButton",
+                                      command=self.ejecutar_simulacion)
+        btn_simular_top.pack(side="right", padx=10)
 
         # --- Panel de Puertas ---
         frame_puertas = self._crear_panel(contenedor, "Llegadas por puerta (Media, Desviación) — Distribución Normal, segundos")
@@ -271,9 +283,7 @@ class InterfazApp:
             ttk.Entry(frame_salas, textvariable=vf[0], width=6).grid(row=i+1, column=3, padx=2)
             ttk.Entry(frame_salas, textvariable=vf[1], width=6).grid(row=i+1, column=4, padx=2)
 
-        btn_simular = ttk.Button(contenedor, text="▶  Iniciar Simulación", style="Accion.TButton",
-                                  command=self.ejecutar_simulacion)
-        btn_simular.pack(pady=18)
+
 
     def _crear_panel(self, parent, titulo):
         """Crea un Labelframe con un borde sutil alrededor, usado como
@@ -320,40 +330,10 @@ class InterfazApp:
         ttk.Button(frame_controles, text="Ver Estado Gráfico", style="Accion.TButton", command=self.abrir_visualizacion_grafica).pack(side="left", padx=10)
 
         # --- Tabla principal (iteraciones) ---
-        frame_tabla = ttk.Frame(panel_split, style="TFrame")
-        frame_tabla.pack(side="top", fill="both", expand=True)
+        self.frame_tabla = ttk.Frame(panel_split, style="TFrame")
+        self.frame_tabla.pack(side="top", fill="both", expand=True)
 
-        columnas = ('Iteracion', 'Dia', 'Hora', 'Reloj_Global', 'Evento',
-                    'ProxA', 'RNDA', 'ProxB', 'RNDB', 'ProxC', 'RNDC',
-                    'ColaV1', 'ColaV2', 'Pintura', 'ColaCerveza', 'ServLibres', 'Fotografia', 'Activos')
-        self.tree = ttk.Treeview(frame_tabla, columns=columnas, show='headings', height=14)
-        encabezados = {
-            'Iteracion': 'Iter.', 'Dia': 'Día', 'Hora': 'Hora', 'Reloj_Global': 'Reloj (s)',
-            'Evento': 'Evento', 
-            'ProxA': 'Próx. A', 'RNDA': 'RND L. A', 'ProxB': 'Próx. B', 'RNDB': 'RND L. B', 'ProxC': 'Próx. C', 'RNDC': 'RND L. C',
-            'ColaV1': 'Cola V1', 'ColaV2': 'Cola V2', 'Pintura': 'En Pintura',
-            'ColaCerveza': 'Cola Cerveza', 'ServLibres': 'Serv. Libres', 'Fotografia': 'En Fotografía',
-            'Activos': '# Activos'
-        }
-        anchos = {'Iteracion': 50, 'Dia': 40, 'Hora': 65, 'Reloj_Global': 80, 'Evento': 170,
-                  'ProxA': 65, 'RNDA': 80, 'ProxB': 65, 'RNDB': 80, 'ProxC': 65, 'RNDC': 80,
-                  'ColaV1': 65, 'ColaV2': 65, 'Pintura': 75, 'ColaCerveza': 90, 'ServLibres': 85,
-                  'Fotografia': 90, 'Activos': 70}
-        for col in columnas:
-            self.tree.heading(col, text=encabezados[col])
-            self.tree.column(col, width=anchos[col], anchor="center")
-
-        scroll_y = ttk.Scrollbar(frame_tabla, orient="vertical", command=self.tree.yview)
-        scroll_x = ttk.Scrollbar(frame_tabla, orient="horizontal", command=self.tree.xview)
-        self.tree.configure(yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
-
-        self.tree.grid(row=0, column=0, sticky="nsew")
-        scroll_y.grid(row=0, column=1, sticky="ns")
-        scroll_x.grid(row=1, column=0, sticky="ew")
-        frame_tabla.grid_rowconfigure(0, weight=1)
-        frame_tabla.grid_columnconfigure(0, weight=1)
-
-        self.tree.bind("<<TreeviewSelect>>", self._mostrar_detalle_fila)
+        self._recrear_treeview(0)
 
         # --- Panel de detalle de visitantes de la fila seleccionada ---
         frame_detalle = ttk.Labelframe(panel_split, text="Detalle de visitantes activos en la fila seleccionada", style="TLabelframe")
@@ -389,7 +369,140 @@ class InterfazApp:
         frame_detalle.grid_rowconfigure(0, weight=1)
         frame_detalle.grid_columnconfigure(0, weight=1)
 
-        self._filas_guardadas = []  # cache para poder reconstruir el detalle al seleccionar
+        self._filas_guardadas = []
+
+    def _recrear_treeview(self, max_activos):
+        columnas_base = (
+            'Iteracion', 'Evento', 'Reloj',
+            'RND1_Lleg_A', 'RND2_Lleg_A', 'Dur_Lleg_A', 'Prox_Lleg_A',
+            'RND1_Lleg_B', 'RND2_Lleg_B', 'Dur_Lleg_B', 'Prox_Lleg_B',
+            'RND1_Lleg_C', 'RND2_Lleg_C', 'Dur_Lleg_C', 'Prox_Lleg_C',
+            'RND_Foll', 'Res_Foll', 'RND_Vent', 'Res_Vent', 'RND_T_Foll', 'Dur_T_Foll',
+            'V1_E1_Est', 'V1_E1_Fin', 'V1_E2_Est', 'V1_E2_Fin',
+            'V2_E1_Est', 'V2_E1_Fin', 'V2_E2_Est', 'V2_E2_Fin',
+            'Cola_V1', 'Cola_V2', 'Personas_Pintura', 'RND_Tiempo_Pint', 'Dur_Tiempo_Pint', 'Fin_Tiempo_Pint',
+            'RND_Foto_Dec', 'Res_Foto_Dec', 'RND_Edad', 'Edad_Trunc', 'Es_Mayor',
+            'RND_Cerv_Dec', 'Res_Cerv_Dec', 'Tpo_Tomar_RK', 'RND_Tpo_Servir', 'Tpo_Serv', 'Cola_Stand',
+            'S1_Est', 'S1_Fin', 'S2_Est', 'S2_Fin',
+            'Personas_Fotografia', 'RND_Tiempo_Foto', 'Dur_Tiempo_Foto', 'Fin_Tiempo_Foto',
+            'AC_Tpo_Espera_V1', 'Cont_Clientes_V1', 'AC_Tpo_Espera_V2', 'Cont_Clientes_V2',
+            'AC_Tpo_Perm_Sistema', 'Cont_Visit_Salen', 'Cont_Birras', 'AC_Edades', 'Cont_Directo_Muestra'
+        )
+
+        encabezados = {
+            'Iteracion': 'Nº',
+            'Evento': 'Evento',
+            'Reloj': 'Reloj',
+            'RND1_Lleg_A': 'RND1 Llegada A',
+            'RND2_Lleg_A': 'RND2 Llegada A',
+            'Dur_Lleg_A': 'Tiempo entre llegadas puerta A',
+            'Prox_Lleg_A': 'Próx Lleg A',
+            'RND1_Lleg_B': 'RND1 Llegada B',
+            'RND2_Lleg_B': 'RND2 Llegada B',
+            'Dur_Lleg_B': 'Tiempo entre llegadas puerta B',
+            'Prox_Lleg_B': 'Próx Lleg B',
+            'RND1_Lleg_C': 'RND1 Llegada C',
+            'RND2_Lleg_C': 'RND2 Llegada C',
+            'Dur_Lleg_C': 'Tiempo entre llegadas puerta C',
+            'Prox_Lleg_C': 'Próx Lleg C',
+            'RND_Foll': 'RND Pasa por folletos',
+            'Res_Foll': 'Folletos (SI o NO)',
+            'RND_Vent': 'RND Ventanilla',
+            'Res_Vent': 'Ventanilla',
+            'RND_T_Foll': 'RND tiempo atencion folletos',
+            'Dur_T_Foll': 'Prox tiempo atencion folletos',
+            'V1_E1_Est': 'V1 E1 Estado',
+            'V1_E1_Fin': 'V1 E1 Fin atencion',
+            'V1_E2_Est': 'V1 E2 Estado',
+            'V1_E2_Fin': 'V1 E2 Fin atencion',
+            'V2_E1_Est': 'V2 E1 Estado',
+            'V2_E1_Fin': 'V2 E1 Fin atencion',
+            'V2_E2_Est': 'V2 E2 Estado',
+            'V2_E2_Fin': 'V2 E2 Fin atencion',
+            'Cola_V1': 'Cola V1',
+            'Cola_V2': 'Cola V2',
+            'Personas_Pintura': 'Contador Personas en Pintura',
+            'RND_Tiempo_Pint': 'RND Tiempo Pint',
+            'Dur_Tiempo_Pint': 'Tiempo Pintura',
+            'Fin_Tiempo_Pint': 'Fin pintura',
+            'RND_Foto_Dec': 'RND va sala fotografia',
+            'Res_Foto_Dec': 'Va sala fotografia',
+            'RND_Edad': 'RND Edad',
+            'Edad_Trunc': 'Edad (Trunc)',
+            'Es_Mayor': 'Es mayor de edad',
+            'RND_Cerv_Dec': 'RND degustacion cerveza',
+            'Res_Cerv_Dec': 'Degusta cerveza',
+            'Tpo_Tomar_RK': 'Tpo Tomar (de RK)',
+            'RND_Tpo_Servir': 'RND Tpo Servir',
+            'Tpo_Serv': 'Tpo Serv',
+            'Cola_Stand': 'Cola Stand',
+            'S1_Est': 'Est Serv 1',
+            'S1_Fin': 'Fin atencion Serv 1',
+            'S2_Est': 'Est Serv 2',
+            'S2_Fin': 'Fin atencion Serv 2',
+            'Personas_Fotografia': 'Personas Fotografia',
+            'RND_Tiempo_Foto': 'RND Tiempo Fotografia',
+            'Dur_Tiempo_Foto': 'Tiempo Fotografia',
+            'Fin_Tiempo_Foto': 'Fin Fotografia',
+            'AC_Tpo_Espera_V1': 'AC Tpo Espera V1',
+            'Cont_Clientes_V1': 'Cont Clientes V1',
+            'AC_Tpo_Espera_V2': 'AC Tpo Espera V2',
+            'Cont_Clientes_V2': 'Cont Clientes V2',
+            'AC_Tpo_Perm_Sistema': 'AC Tpo Perm Sistema',
+            'Cont_Visit_Salen': 'Cont Visit Salen',
+            'Cont_Birras': 'Cont Birras',
+            'AC_Edades': 'AC Edades',
+            'Cont_Directo_Muestra': 'Cont Directo a Muestra'
+        }
+
+        anchos = {}
+        for col in columnas_base:
+            if col == 'Evento':
+                anchos[col] = 160
+            elif col in ('RND1_Lleg_A', 'RND2_Lleg_A', 'RND1_Lleg_B', 'RND2_Lleg_B', 'RND1_Lleg_C', 'RND2_Lleg_C',
+                         'Dur_Lleg_A', 'Dur_Lleg_B', 'Dur_Lleg_C',
+                         'RND_Foll', 'RND_Vent', 'RND_T_Foll', 'Dur_T_Foll',
+                         'RND_Tiempo_Pint', 'Dur_Tiempo_Pint', 'Fin_Tiempo_Pint',
+                         'RND_Foto_Dec', 'RND_Edad', 'RND_Cerv_Dec', 'Tpo_Tomar_RK', 'RND_Tpo_Servir', 'Tpo_Serv',
+                         'RND_Tiempo_Foto', 'Dur_Tiempo_Foto', 'Fin_Tiempo_Foto',
+                         'AC_Tpo_Espera_V1', 'Cont_Clientes_V1', 'AC_Tpo_Espera_V2', 'Cont_Clientes_V2',
+                         'AC_Tpo_Perm_Sistema', 'Cont_Visit_Salen', 'Cont_Birras', 'AC_Edades', 'Cont_Directo_Muestra'):
+                anchos[col] = 100
+            elif col in ('Iteracion', 'Reloj'):
+                anchos[col] = 60
+            else:
+                anchos[col] = 90
+
+        columnas_completas = list(columnas_base)
+        for k in range(1, max_activos + 1):
+            for campo in ('Estado', 'HLlegada'):
+                col_name = f"{campo}_{k}"
+                columnas_completas.append(col_name)
+                if campo == 'Estado':
+                    encabezados[col_name] = f"Estado({k})"
+                    anchos[col_name] = 130
+                else:
+                    encabezados[col_name] = f"H. Llegada({k})"
+                    anchos[col_name] = 90
+
+        if not hasattr(self, 'tree') or not self.tree.winfo_exists():
+            self.tree = ttk.Treeview(self.frame_tabla, columns=columnas_completas, show='headings', height=14)
+            self.scroll_y = ttk.Scrollbar(self.frame_tabla, orient="vertical", command=self.tree.yview)
+            self.scroll_x = ttk.Scrollbar(self.frame_tabla, orient="horizontal", command=self.tree.xview)
+            self.tree.configure(yscrollcommand=self.scroll_y.set, xscrollcommand=self.scroll_x.set)
+
+            self.tree.grid(row=0, column=0, sticky="nsew")
+            self.scroll_y.grid(row=0, column=1, sticky="ns")
+            self.scroll_x.grid(row=1, column=0, sticky="ew")
+            self.frame_tabla.grid_rowconfigure(0, weight=1)
+            self.frame_tabla.grid_columnconfigure(0, weight=1)
+            self.tree.bind("<<TreeviewSelect>>", self._mostrar_detalle_fila)
+        else:
+            self.tree.configure(columns=columnas_completas)
+
+        for col in columnas_completas:
+            self.tree.heading(col, text=encabezados[col])
+            self.tree.column(col, width=anchos[col], anchor="center")
 
     def _mostrar_detalle_fila(self, event):
         seleccion = self.tree.selection()
@@ -437,25 +550,73 @@ class InterfazApp:
         else:
             cantidad_i = int(i_str)
 
-        for row in self.tree.get_children():
-            self.tree.delete(row)
-            
         filas_a_mostrar = [
             f for f in self.todas_las_filas_simulacion 
             if desde_j <= f['Iteracion'] <= (desde_j + cantidad_i)
         ]
         
+        if self.todas_las_filas_simulacion and self.todas_las_filas_simulacion[-1] not in filas_a_mostrar:
+            filas_a_mostrar.append(self.todas_las_filas_simulacion[-1])
+
+        max_slot = -1
+        for f in filas_a_mostrar:
+            for v in f.get('Visitantes_Activos_Detalle', []):
+                if '_slot' in v:
+                    max_slot = max(max_slot, v['_slot'])
+        self.max_activos_simulacion = max_slot + 1
+
+        self._recrear_treeview(self.max_activos_simulacion)
+
+        for row in self.tree.get_children():
+            self.tree.delete(row)
+
         self._filas_guardadas = filas_a_mostrar
         for fila in filas_a_mostrar:
-            self.tree.insert('', 'end', values=(
-                fila['Iteracion'], fila['Dia'], fila['Hora_Aprox'], fila['Reloj_Global'], fila['Evento'],
-                fila.get('Prox_Lleg_A', ''), fila.get('RND_Lleg_A', ''),
-                fila.get('Prox_Lleg_B', ''), fila.get('RND_Lleg_B', ''),
-                fila.get('Prox_Lleg_C', ''), fila.get('RND_Lleg_C', ''),
-                fila['En_Cola_Informes_V1'], fila['En_Cola_Informes_V2'], fila['En_Pintura'],
-                fila['En_Cola_Cerveza'], fila['Servidores_Cerveza_Libres'], fila['En_Fotografia'],
-                fila['Cantidad_Visitantes_Activos']
-            ))
+            vals = [
+                fila['Iteracion'], fila['Evento'], fila['Reloj'],
+                fila.get('RND1_Lleg_A', ''), fila.get('RND2_Lleg_A', ''), fila.get('Dur_Lleg_A', ''), fila.get('Prox_Lleg_A', ''),
+                fila.get('RND1_Lleg_B', ''), fila.get('RND2_Lleg_B', ''), fila.get('Dur_Lleg_B', ''), fila.get('Prox_Lleg_B', ''),
+                fila.get('RND1_Lleg_C', ''), fila.get('RND2_Lleg_C', ''), fila.get('Dur_Lleg_C', ''), fila.get('Prox_Lleg_C', ''),
+                fila.get('RND_Foll', ''), fila.get('Res_Foll', ''),
+                fila.get('RND_Vent', ''), fila.get('Res_Vent', ''),
+                fila.get('RND_T_Foll', ''), fila.get('Dur_T_Foll', ''),
+                fila.get('V1_E1_Est', ''), fila.get('V1_E1_Fin', ''),
+                fila.get('V1_E2_Est', ''), fila.get('V1_E2_Fin', ''),
+                fila.get('V2_E1_Est', ''), fila.get('V2_E1_Fin', ''),
+                fila.get('V2_E2_Est', ''), fila.get('V2_E2_Fin', ''),
+                fila.get('Cola_V1', 0), fila.get('Cola_V2', 0),
+                fila.get('Personas_Pintura', 0), fila.get('RND_Tiempo_Pint', ''), fila.get('Dur_Tiempo_Pint', ''), fila.get('Fin_Tiempo_Pint', ''),
+                fila.get('RND_Foto_Dec', ''), fila.get('Res_Foto_Dec', ''),
+                fila.get('RND_Edad', ''), fila.get('Edad_Trunc', ''), fila.get('Es_Mayor', ''),
+                fila.get('RND_Cerv_Dec', ''), fila.get('Res_Cerv_Dec', ''),
+                fila.get('Tpo_Tomar_RK', ''), fila.get('RND_Tpo_Servir', ''), fila.get('Tpo_Serv', ''),
+                fila.get('Cola_Stand', 0),
+                fila.get('S1_Est', ''), fila.get('S1_Fin', ''),
+                fila.get('S2_Est', ''), fila.get('S2_Fin', ''),
+                fila.get('Personas_Fotografia', 0), fila.get('RND_Tiempo_Foto', ''), fila.get('Dur_Tiempo_Foto', ''), fila.get('Fin_Tiempo_Foto', ''),
+                fila.get('AC_Tpo_Espera_V1', 0), fila.get('Cont_Clientes_V1', 0),
+                fila.get('AC_Tpo_Espera_V2', 0), fila.get('Cont_Clientes_V2', 0),
+                fila.get('AC_Tpo_Perm_Sistema', 0), fila.get('Cont_Visit_Salen', 0),
+                fila.get('Cont_Birras', 0), fila.get('AC_Edades', 0), fila.get('Cont_Directo_Muestra', 0)
+            ]
+
+            visitantes_activos = fila.get('Visitantes_Activos_Detalle', [])
+            visitor_slots = [None] * self.max_activos_simulacion
+            for v in visitantes_activos:
+                slot_idx = v.get('_slot', 0)
+                if slot_idx < self.max_activos_simulacion:
+                    visitor_slots[slot_idx] = v
+
+            for k in range(self.max_activos_simulacion):
+                v = visitor_slots[k]
+                if v is not None:
+                    vals.extend([
+                        f"{v['ID']} - {v['Estado']}", v['Llegada']
+                    ])
+                else:
+                    vals.extend(["", ""])
+
+            self.tree.insert('', 'end', values=tuple(vals))
 
         for row in self.tree_detalle.get_children():
             self.tree_detalle.delete(row)
@@ -681,6 +842,35 @@ class InterfazApp:
 
         self.simulador_actual = Simulador(parametros)
         resultados = self.simulador_actual.simular(iter_max, param_j_val, param_i_val)
+
+        # Asignar slots persistentes a los visitantes a lo largo de toda la simulación
+        visitor_to_slot = {}
+        prev_active_ids = set()
+        for fila in resultados:
+            current_active_details = fila.get('Visitantes_Activos_Detalle', [])
+            current_active_ids = {v['ID'] for v in current_active_details}
+            
+            # Liberar slots de los que salieron del sistema
+            left_ids = prev_active_ids - current_active_ids
+            for lid in left_ids:
+                if lid in visitor_to_slot:
+                    del visitor_to_slot[lid]
+                    
+            # Asignar slots disponibles a los nuevos que ingresaron
+            used_slots = set(visitor_to_slot.values())
+            for v in current_active_details:
+                vid = v['ID']
+                if vid not in visitor_to_slot:
+                    slot = 0
+                    while slot in used_slots:
+                        slot += 1
+                    visitor_to_slot[vid] = slot
+                    used_slots.add(slot)
+            
+            for v in current_active_details:
+                v['_slot'] = visitor_to_slot[v['ID']]
+                
+            prev_active_ids = current_active_ids
 
         self.todas_las_filas_simulacion = resultados
         self.actualizar_vista_vector()
