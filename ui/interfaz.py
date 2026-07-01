@@ -253,10 +253,6 @@ class InterfazApp:
         ttk.Label(frame_control, text="Paso (h) para Runge-Kutta:", style="Panel.TLabel").grid(row=2, column=2, sticky="w", padx=10, pady=6)
         ttk.Entry(frame_control, textvariable=self.param_h, width=10).grid(row=2, column=3, padx=4)
 
-        ttk.Label(frame_control, text="Distribución para Salas:", style="Panel.TLabel").grid(row=3, column=0, sticky="w", padx=10, pady=6)
-        cb_dist = ttk.Combobox(frame_control, textvariable=self.dist_salas, values=["Normal", "Uniforme"], state="readonly", width=12)
-        cb_dist.grid(row=3, column=1, padx=4)
-
         # --- Panel de Tiempos de Salas ---
         frame_salas = self._crear_panel(contenedor, "Tiempos en Salas por Horario (Media, Desv)")
         ttk.Label(frame_salas, text="Pintura", style="Subtitulo.TLabel").grid(row=0, column=1, columnspan=2, pady=2)
@@ -383,10 +379,15 @@ class InterfazApp:
             else:
                 width = 80
             self.tree_detalle.column(col, width=width, anchor="center")
-        scroll_det = ttk.Scrollbar(frame_detalle, orient="vertical", command=self.tree_detalle.yview)
-        self.tree_detalle.configure(yscrollcommand=scroll_det.set)
-        self.tree_detalle.pack(side="left", fill="both", expand=True, padx=(8, 0), pady=8)
-        scroll_det.pack(side="right", fill="y", pady=8)
+        scroll_det_y = ttk.Scrollbar(frame_detalle, orient="vertical", command=self.tree_detalle.yview)
+        scroll_det_x = ttk.Scrollbar(frame_detalle, orient="horizontal", command=self.tree_detalle.xview)
+        self.tree_detalle.configure(yscrollcommand=scroll_det_y.set, xscrollcommand=scroll_det_x.set)
+
+        self.tree_detalle.grid(row=0, column=0, sticky="nsew")
+        scroll_det_y.grid(row=0, column=1, sticky="ns")
+        scroll_det_x.grid(row=1, column=0, sticky="ew")
+        frame_detalle.grid_rowconfigure(0, weight=1)
+        frame_detalle.grid_columnconfigure(0, weight=1)
 
         self._filas_guardadas = []  # cache para poder reconstruir el detalle al seleccionar
 
@@ -550,10 +551,15 @@ class InterfazApp:
         self.tree_rk.heading('k4', text='k4')
         for c in ('t', 'C', 'dCdt', 'k1', 'k2', 'k3', 'k4'):
             self.tree_rk.column(c, width=100, anchor="center")
-        scroll_rk = ttk.Scrollbar(frame_tabla_rk, orient="vertical", command=self.tree_rk.yview)
-        self.tree_rk.configure(yscrollcommand=scroll_rk.set)
-        self.tree_rk.pack(side="left", fill="both", expand=True, padx=8, pady=8)
-        scroll_rk.pack(side="right", fill="y", pady=8)
+        scroll_rk_y = ttk.Scrollbar(frame_tabla_rk, orient="vertical", command=self.tree_rk.yview)
+        scroll_rk_x = ttk.Scrollbar(frame_tabla_rk, orient="horizontal", command=self.tree_rk.xview)
+        self.tree_rk.configure(yscrollcommand=scroll_rk_y.set, xscrollcommand=scroll_rk_x.set)
+
+        self.tree_rk.grid(row=0, column=0, sticky="nsew")
+        scroll_rk_y.grid(row=0, column=1, sticky="ns")
+        scroll_rk_x.grid(row=1, column=0, sticky="ew")
+        frame_tabla_rk.grid_rowconfigure(0, weight=1)
+        frame_tabla_rk.grid_columnconfigure(0, weight=1)
 
         self._tablas_rk_dict = {}
 
